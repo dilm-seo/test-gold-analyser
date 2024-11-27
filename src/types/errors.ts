@@ -1,11 +1,17 @@
-export interface ApiError {
+export interface ApiError extends Error {
   code: string;
   message: string;
-  details?: unknown;
+  details?: string;
 }
 
-export interface FetchError extends ApiError {
-  status?: number;
-}
+export class RSSError extends Error implements ApiError {
+  code: string;
+  details?: string;
 
-export type ErrorHandler = (error: Error | ApiError) => void;
+  constructor(code: string, message: string, details?: string) {
+    super(message);
+    this.code = code;
+    this.details = details;
+    this.name = 'RSSError';
+  }
+}

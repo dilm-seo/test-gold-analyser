@@ -13,7 +13,7 @@ export const useSettingsStore = create<SettingsStore>()(
       settings: {
         apiKey: '',
         model: 'gpt-4-turbo-preview',
-        prompt: 'Analysez cette actualité forex et fournissez les points clés, l\'impact potentiel sur le marché et les considérations de trading:',
+        refreshInterval: 300000, // 5 minutes
       },
       updateSettings: (newSettings) =>
         set((state) => ({

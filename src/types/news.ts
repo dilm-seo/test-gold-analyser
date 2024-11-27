@@ -8,14 +8,10 @@ export interface NewsItem {
   category: string;
 }
 
-export interface Settings {
-  apiKey: string;
-  model: string;
-  refreshInterval: number;
-}
-
-export interface AnalysisResult {
-  sentiment: string;
-  impact: 'high' | 'medium' | 'low';
-  summary: string;
+export interface RawRSSItem {
+  title: any;
+  description: any;
+  link: any;
+  pubDate: any;
+  category?: any;
 }

@@ -1,19 +1,31 @@
 export interface NewsItem {
   title: string;
   description: string;
-  pubDate: string;
   link: string;
-  creator: string;
+  pubDate: string;
+  sentiment: string;
+  impact: 'high' | 'medium' | 'low';
+  category: string;
+  usdSentiment?: string;
+  confidence?: number;
+  keyLevelsUSD?: string | null;
+  keyLevelsGold?: string | null;
+  tradeRecommendation?: string | null;
 }
 
 export interface Settings {
   apiKey: string;
   model: string;
-  prompt: string;
+  refreshInterval: number;
 }
 
 export interface AnalysisResult {
-  newsItem: NewsItem;
-  analysis: string;
-  timestamp: string;
+  sentiment: string;
+  impact: 'high' | 'medium' | 'low';
+  summary: string;
+  usdSentiment: string;
+  confidence: number;
+  keyLevelsUSD: string | null;
+  keyLevelsGold: string | null;
+  tradeRecommendation: string | null;
 }

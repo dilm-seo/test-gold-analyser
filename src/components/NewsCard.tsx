@@ -1,68 +1,93 @@
 import React from 'react';
-import { NewsItem } from '../types/news';
-import { formatDistanceToNow } from 'date-fns';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { format } from 'date-fns';
+import { TrendingUp, TrendingDown, Minus, DollarSign, Coins, Target } from 'lucide-react';
+import { NewsItem } from '../types';
 
 interface NewsCardProps {
   news: NewsItem;
 }
 
 export function NewsCard({ news }: NewsCardProps) {
-  const getSentimentIcon = () => {
-    switch (news.sentiment.toLowerCase()) {
-      case 'bullish':
-        return <TrendingUp className="w-5 h-5 text-green-500" />;
-      case 'bearish':
-        return <TrendingDown className="w-5 h-5 text-red-500" />;
-      default:
-        return <Minus className="w-5 h-5 text-gray-500" />;
-    }
-  };
+  const renderSentimentIndicator = (sentiment: string, type: 'USD' | 'GOLD') => {
+    const Icon = type === 'USD' ? DollarSign : Coins;
+    const baseClasses = "flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium";
+    
+    let colorClasses = "bg-gray-100 text-gray-600";
+    if (sentiment === 'bullish') colorClasses = "bg-green-100 text-green-800";
+    if (sentiment === 'bearish') colorClasses = "bg-red-100 text-red-800";
 
-  const getImpactColor = () => {
-    switch (news.impact) {
-      case 'high':
-        return 'bg-red-100 text-red-800';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'low':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+    return (
+      <div className={`${baseClasses} ${colorClasses}`}>
+        <Icon className="w-3 h-3" />
+        <span>{sentiment.toUpperCase()}</span>
+      </div>
+    );
   };
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-gray-900">{news.title}</h3>
-          <p className="text-sm text-gray-500 mt-1">
-            {formatDistanceToNow(new Date(news.pubDate), { addSuffix: true })}
-          </p>
+          <h3 className="text-lg font-semibold mb-2">{news.title}</h3>
+          <p className="text-gray-600 text-sm">{news.description}</p>
         </div>
-        {getSentimentIcon()}
       </div>
       
-      <p className="mt-2 text-gray-600">{news.description}</p>
-      
-      <div className="mt-4 flex items-center space-x-2">
-        <span
-          className={`px-2 py-1 rounded-full text-xs font-medium ${getImpactColor()}`}
-        >
-          {news.impact.toUpperCase()} IMPACT
-        </span>
-        <span className="text-xs text-gray-500">{news.category}</span>
+      <div className="space-y-4">
+        <div className="flex items-center space-x-2">
+          {renderSentimentIndicator(news.usdSentiment || 'neutral', 'USD')}
+          {renderSentimentIndicator(news.sentiment, 'GOLD')}
+          <div className="flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            <Target className="w-3 h-3" />
+            <span>Confidence: {news.confidence}%</span>
+          </div>
+        </div>
+
+        {(news.keyLevelsUSD || news.keyLevelsGold) && (
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            {news.keyLevelsUSD && (
+              <div className="bg-gray-50 p-2 rounded">
+                <span className="font-medium">USD Levels:</span> {news.keyLevelsUSD}
+              </div>
+            )}
+            {news.keyLevelsGold && (
+              <div className="bg-gray-50 p-2 rounded">
+                <span className="font-medium">Gold Levels:</span> {news.keyLevelsGold}
+              </div>
+            )}
+          </div>
+        )}
+
+        {news.tradeRecommendation && news.confidence && news.confidence > 80 && (
+          <div className="bg-indigo-50 p-3 rounded-md">
+            <h4 className="font-medium text-indigo-800 mb-1">High Confidence Trade Idea:</h4>
+            <p className="text-sm text-indigo-700">{news.tradeRecommendation}</p>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between pt-2 border-t">
+          <div className="flex items-center space-x-2">
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+              news.impact === 'high' ? 'bg-red-100 text-red-800' :
+              news.impact === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-green-100 text-green-800'
+            }`}>
+              {news.impact.toUpperCase()}
+            </span>
+            <span className="text-sm text-gray-500">
+              {format(new Date(news.pubDate), 'MMM d, yyyy HH:mm')}
+            </span>
+          </div>
+          <a
+            href={news.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:text-blue-700 text-sm"
+          >
+            Read More →
+          </a>
+        </div>
       </div>
-      
-      <a
-        href={news.link}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-2 text-sm text-blue-600 hover:text-blue-800"
-      >
-        Read more →
-      </a>
     </div>
   );
 }

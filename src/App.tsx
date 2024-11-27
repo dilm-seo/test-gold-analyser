@@ -1,29 +1,21 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { NewsItem, Settings } from './types/news';
-import { ApiError } from './types/errors';
-import { fetchRSSFeed } from './services/rssService';
-import { analyzeNews } from './services/openaiService';
+import React, { useEffect, useCallback } from 'react';
+import { useSettingsStore } from './store/settingsStore';
+import { useNewsStore } from './store/newsStore';
+import { fetchRSSFeed, analyzeContent } from './services/api';
+import { analyzeMarketSentiment } from './services/sentimentAnalyzer';
+import { SentimentDashboard } from './components/SentimentDashboard';
 import { NewsCard } from './components/NewsCard';
 import { SettingsPanel } from './components/SettingsPanel';
-import { ErrorMessage } from './components/ErrorMessage';
-import { SentimentSummary } from './components/SentimentSummary';
-import { getSettings, saveSettings } from './utils/storage';
-import { Play, Pause, RefreshCw } from 'lucide-react';
+import { Play, Loader2 } from 'lucide-react';
 
 function App() {
-  const [news, setNews] = useState<NewsItem[]>([]);
-  const [settings, setSettings] = useState<Settings>(getSettings());
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isAutoRefresh, setIsAutoRefresh] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<ApiError | null>(null);
+  const { settings } = useSettingsStore();
+  const { news, isLoading, error, setNews, setLoading, setError } = useNewsStore();
+  const [marketAnalysis, setMarketAnalysis] = React.useState(null);
 
   const fetchAndAnalyzeNews = useCallback(async () => {
     if (!settings.apiKey) {
-      setError({
-        code: 'MISSING_API_KEY',
-        message: 'Please configure your OpenAI API key in settings',
-      });
+      setError('Please configure your OpenAI API key in settings');
       return;
     }
 
@@ -31,109 +23,106 @@ function App() {
     setError(null);
 
     try {
-      const newsItems = await fetchRSSFeed();
-      setIsAnalyzing(true);
-
+      const items = await fetchRSSFeed();
       const analyzedNews = await Promise.all(
-        newsItems.map(async (item) => {
-          try {
-            const analysis = await analyzeNews(
-              settings.apiKey,
-              settings.model,
-              item
-            );
-            return { ...item, ...analysis };
-          } catch (error) {
-            console.error('Analysis error for item:', error);
-            return item;
-          }
+        items.map(async (item) => {
+          const analysis = await analyzeContent(
+            `${item.title}\n${item.description}`,
+            settings
+          );
+          
+          return {
+            ...item,
+            ...analysis,
+          };
         })
       );
 
       setNews(analyzedNews);
-    } catch (error) {
-      setError(
-        error as ApiError || {
-          code: 'UNKNOWN_ERROR',
-          message: 'An unexpected error occurred',
-        }
-      );
+      const analysis = analyzeMarketSentiment(analyzedNews);
+      setMarketAnalysis(analysis);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
-      setIsAnalyzing(false);
     }
-  }, [settings]);
+  }, [settings, setNews, setLoading, setError]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isAutoRefresh && !error) {
-      interval = setInterval(fetchAndAnalyzeNews, settings.refreshInterval);
+    if (settings.apiKey) {
+      fetchAndAnalyzeNews();
+      const interval = setInterval(fetchAndAnalyzeNews, settings.refreshInterval);
+      return () => clearInterval(interval);
     }
-    return () => clearInterval(interval);
-  }, [isAutoRefresh, settings.refreshInterval, fetchAndAnalyzeNews, error]);
-
-  const handleSettingsSave = (newSettings: Settings) => {
-    setSettings(newSettings);
-    saveSettings(newSettings);
-    setError(null);
-  };
+  }, [settings.apiKey, settings.refreshInterval, fetchAndAnalyzeNews]);
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            ForexLive News Analyzer
-          </h1>
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setIsAutoRefresh(!isAutoRefresh)}
-              className={`p-2 rounded-md ${
-                isAutoRefresh
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-600'
-              }`}
-            >
-              {isAutoRefresh ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-            </button>
-            <button
-              onClick={fetchAndAnalyzeNews}
-              disabled={loading || isAnalyzing}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-            >
-              <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-              <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
-            </button>
-            <SettingsPanel settings={settings} onSave={handleSettingsSave} />
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold text-gray-900">
+              Forex News Analyzer
+            </h1>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={fetchAndAnalyzeNews}
+                disabled={isLoading || !settings.apiKey}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                ) : (
+                  <Play className="w-5 h-5 mr-2" />
+                )}
+                {isLoading ? 'Analyzing...' : 'Analyze News'}
+              </button>
+              <SettingsPanel />
+            </div>
           </div>
         </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {marketAnalysis && (
+          <SentimentDashboard
+            usdSentiment={marketAnalysis.usdSentiment}
+            goldSentiment={marketAnalysis.goldSentiment}
+          />
+        )}
 
         {error && (
-          <div className="mb-8">
-            <ErrorMessage
-              title={error.code}
-              message={error.message}
-              onRetry={fetchAndAnalyzeNews}
-            />
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            </div>
           </div>
         )}
 
-        {news.length > 0 && <SentimentSummary news={news} />}
-
-        {!error && news.length === 0 && !loading && (
-          <div className="text-center py-12">
-            <p className="text-gray-500">
-              Click the refresh button to start analyzing news
-            </p>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="space-y-6">
           {news.map((item, index) => (
             <NewsCard key={index} news={item} />
           ))}
         </div>
-      </div>
+
+        {!settings.apiKey && (
+          <div className="text-center py-12">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Welcome to Forex News Analyzer
+            </h3>
+            <p className="text-gray-500">
+              Please configure your OpenAI API key in the settings to start analyzing news.
+            </p>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
