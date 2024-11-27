@@ -1,93 +1,102 @@
-import React from 'react';
-import { Settings, Key, Brain, MessageSquare } from 'lucide-react';
-import { useSettingsStore } from '../store/settingsStore';
-import { predefinedPrompts } from '../data/predefinedPrompts';
+import React, { useState } from 'react';
+import { Settings } from '../types/news';
+import { Settings as SettingsIcon } from 'lucide-react';
 
-export function SettingsPanel() {
-  const { settings, updateSettings } = useSettingsStore();
+interface SettingsPanelProps {
+  settings: Settings;
+  onSave: (settings: Settings) => void;
+}
 
-  const handlePromptSelect = (promptId: string) => {
-    const selectedPrompt = predefinedPrompts.find((p) => p.id === promptId);
-    if (selectedPrompt) {
-      updateSettings({ prompt: selectedPrompt.prompt });
-    }
+export function SettingsPanel({ settings, onSave }: SettingsPanelProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [formData, setFormData] = useState(settings);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+    setIsOpen(false);
   };
 
   return (
-    <div className="card p-6 space-y-6">
-      <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
-        <Settings className="w-6 h-6 text-blue-600" />
-        <h2 className="text-xl font-semibold">Paramètres</h2>
-      </div>
-      
-      <div className="space-y-5">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Key className="w-4 h-4 text-gray-500" />
-            <label className="text-sm font-medium text-gray-700">
-              Clé API OpenAI
-            </label>
-          </div>
-          <input
-            type="password"
-            value={settings.apiKey}
-            onChange={(e) => updateSettings({ apiKey: e.target.value })}
-            className="input-field"
-            placeholder="sk-..."
-          />
-        </div>
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-2 rounded-full hover:bg-gray-100"
+      >
+        <SettingsIcon className="w-6 h-6" />
+      </button>
 
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Brain className="w-4 h-4 text-gray-500" />
-            <label className="text-sm font-medium text-gray-700">
-              Modèle
-            </label>
-          </div>
-          <select
-            value={settings.model}
-            onChange={(e) => updateSettings({ model: e.target.value })}
-            className="input-field"
-          >
-            <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
-            <option value="gpt-4">GPT-4</option>
-            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-          </select>
-        </div>
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl p-4 z-50">
+          <form onSubmit={handleSubmit}>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  OpenAI API Key
+                </label>
+                <input
+                  type="password"
+                  value={formData.apiKey}
+                  onChange={(e) =>
+                    setFormData({ ...formData, apiKey: e.target.value })
+                  }
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
 
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <MessageSquare className="w-4 h-4 text-gray-500" />
-            <label className="text-sm font-medium text-gray-700">
-              Type d'Analyse
-            </label>
-          </div>
-          <select
-            onChange={(e) => handlePromptSelect(e.target.value)}
-            className="input-field mb-3"
-            value={predefinedPrompts.find((p) => p.prompt === settings.prompt)?.id || ''}
-          >
-            {predefinedPrompts.map((prompt) => (
-              <option key={prompt.id} value={prompt.id}>
-                {prompt.name}
-              </option>
-            ))}
-          </select>
-          
-          <div className="flex items-center gap-2 mb-2">
-            <MessageSquare className="w-4 h-4 text-gray-500" />
-            <label className="text-sm font-medium text-gray-700">
-              Prompt Personnalisé
-            </label>
-          </div>
-          <textarea
-            value={settings.prompt}
-            onChange={(e) => updateSettings({ prompt: e.target.value })}
-            className="input-field h-32 resize-none"
-            placeholder="Entrez votre prompt d'analyse..."
-          />
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Model
+                </label>
+                <select
+                  value={formData.model}
+                  onChange={(e) =>
+                    setFormData({ ...formData, model: e.target.value })
+                  }
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                >
+                  <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
+                  <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Refresh Interval (seconds)
+                </label>
+                <input
+                  type="number"
+                  min="60"
+                  value={formData.refreshInterval / 1000}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      refreshInterval: parseInt(e.target.value) * 1000,
+                    })
+                  }
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </form>
         </div>
-      </div>
+      )}
     </div>
   );
 }

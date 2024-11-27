@@ -1,69 +1,67 @@
-import React, { useMemo } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { ExternalLink } from 'lucide-react';
-import { AnalysisResult } from '../types';
-import { SentimentChart } from './SentimentChart';
-import { ImpactIndicator } from './ImpactIndicator';
-import { TradingOpportunity } from './TradingOpportunity';
-import { extractSentimentData, extractTradingOpportunity } from '../utils/analysisParser';
+import React from 'react';
+import { NewsItem } from '../types/news';
+import { formatDistanceToNow } from 'date-fns';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface NewsCardProps {
-  result: AnalysisResult;
+  news: NewsItem;
 }
 
-export function NewsCard({ result }: NewsCardProps) {
-  const { sentiment, impact } = useMemo(() => 
-    extractSentimentData(result.analysis),
-    [result.analysis]
-  );
+export function NewsCard({ news }: NewsCardProps) {
+  const getSentimentIcon = () => {
+    switch (news.sentiment.toLowerCase()) {
+      case 'bullish':
+        return <TrendingUp className="w-5 h-5 text-green-500" />;
+      case 'bearish':
+        return <TrendingDown className="w-5 h-5 text-red-500" />;
+      default:
+        return <Minus className="w-5 h-5 text-gray-500" />;
+    }
+  };
 
-  const tradingOpp = useMemo(() => 
-    extractTradingOpportunity(result.analysis),
-    [result.analysis]
-  );
+  const getImpactColor = () => {
+    switch (news.impact) {
+      case 'high':
+        return 'bg-red-100 text-red-800';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'low':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   return (
-    <div className="card p-6 space-y-6">
-      <div className="flex justify-between items-start gap-4">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">{result.newsItem.title}</h3>
+    <div className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-gray-900">{news.title}</h3>
           <p className="text-sm text-gray-500 mt-1">
-            {new Date(result.newsItem.pubDate).toLocaleString('fr-FR', {
-              dateStyle: 'long',
-              timeStyle: 'short'
-            })}
+            {formatDistanceToNow(new Date(news.pubDate), { addSuffix: true })}
           </p>
         </div>
-        <ImpactIndicator impact={impact} />
+        {getSentimentIcon()}
       </div>
-
-      {tradingOpp && <TradingOpportunity {...tradingOpp} />}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-gray-50 rounded-xl p-4">
-          <h4 className="text-md font-semibold mb-4 text-gray-700">Sentiment du Marché</h4>
-          <SentimentChart data={sentiment} />
-        </div>
-        
-        <div className="bg-gray-50 rounded-xl p-4">
-          <h4 className="text-md font-semibold mb-3 text-gray-700">Points Clés</h4>
-          <div className="prose prose-sm max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {result.analysis}
-            </ReactMarkdown>
-          </div>
-        </div>
+      
+      <p className="mt-2 text-gray-600">{news.description}</p>
+      
+      <div className="mt-4 flex items-center space-x-2">
+        <span
+          className={`px-2 py-1 rounded-full text-xs font-medium ${getImpactColor()}`}
+        >
+          {news.impact.toUpperCase()} IMPACT
+        </span>
+        <span className="text-xs text-gray-500">{news.category}</span>
       </div>
-
+      
       <a
-        href={result.newsItem.link}
+        href={news.link}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors text-sm font-medium"
+        className="mt-2 text-sm text-blue-600 hover:text-blue-800"
       >
-        Lire l'article original
-        <ExternalLink className="w-4 h-4" />
+        Read more →
       </a>
     </div>
   );
